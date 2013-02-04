@@ -16,7 +16,7 @@ public final class R {
     }
     public static final class id {
         public static final int Cheat=0x7f070002;
-        public static final int cardlist=0x7f070000;
+        public static final int gridView1=0x7f070000;
         public static final int menu_settings=0x7f070004;
         public static final int messages=0x7f070001;
         public static final int new_game=0x7f070003;
