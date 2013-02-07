@@ -1,5 +1,8 @@
 package com.conanyuan.androidset;
 
+import java.util.ArrayList;
+import java.util.Random;
+
 import android.os.Bundle;
 import android.app.Activity;
 import android.content.Context;
@@ -13,13 +16,35 @@ import android.widget.GridView;
 import android.widget.ImageView;
 
 public class MainActivity extends Activity {
+	/* Every card has 4 attributes */
+	private static final int N_ATTRS      = 4;
+
+	/* Ever attribute has 3 possible values */
+	private static final int N_VALUES     = 3;
+
+	/* The number of cards shown initially */
+	private static final int N_INIT_CARDS = 12;
+
+	/* The number of cards to deal at a time */
+	private static final int N_AT_A_TIME = 3;
+
+	/*
+	 * Cards are just integers whose value is:
+	 * "shading * 27 + shape * 9 + color * 3 + number + 1".gif
+	 * where each attribute takes a value from 0 to 2
+	 */
+
+	private Deck mDeck;
+	private ImageAdapter mAdapter;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mDeck = new Deck((int)(Math.pow(N_VALUES, N_ATTRS)));
         setContentView(R.layout.activity_main);
         GridView grid = (GridView) findViewById(R.id.card_grid);
-        grid.setAdapter(new ImageAdapter(this));
+        mAdapter = new ImageAdapter(this);
+        grid.setAdapter(mAdapter);
 
         grid.setOnItemClickListener(new OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
@@ -28,25 +53,114 @@ public class MainActivity extends Activity {
         });
     }
 
+    private static boolean isSet(ArrayList<Integer> cards) {
+    	if (cards.size() != N_VALUES) {
+    		return false;
+    	}
+		boolean allsame = true;
+		boolean alldifferent = true;
+    	for (int ii = 0, mask = 1;
+    		 ii < N_ATTRS;
+    		 ii++, mask *= 3)
+    	{
+    		int[] vals = new int[N_VALUES];
+    		int[] possibles = new int[N_VALUES];
+    		for (int jj = 0; jj < N_VALUES; jj++) {
+    			vals[jj] = (cards.get(jj) % (mask * N_VALUES)) / mask;
+    			if (possibles[vals[jj]] != 0) {
+    				alldifferent = false;
+    			}
+    			possibles[vals[jj]] = 1;
+    			if (jj > 0 && vals[jj] != vals[0]) {
+    				allsame = false;
+    			}
+    		}
+    		if (!allsame && !alldifferent) {
+    			return false;
+    		}
+    	}
+    	return true;
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.activity_main, menu);
         return true;
     }
 
-    public class ImageAdapter extends BaseAdapter {
+    public static class Deck {
+    	private int[] mCards;
+    	private Random mRand;
+    	private int mCurrent;
+
+    	public Deck(int nCards) {
+    		mCards = new int[nCards];
+    		for (int i = 0; i < nCards; i++) {
+    			mCards[i] = i;
+    		}
+    		mRand = new Random();
+    		shuffle();
+    	}
+
+    	private void shuffle() {
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < mCards.length; j++) {
+                    int k = Math.abs(mRand.nextInt() % mCards.length);
+                    /* swap */
+                    int temp = mCards[j];
+                    mCards[j] = mCards[k];
+                    mCards[k]=temp;
+                }
+            }
+            mCurrent = 0;
+     	}
+
+    	public int nextCard() {
+    		if (endOfDeck()) {
+    			shuffle();
+    		}
+    		return mCards[mCurrent++];
+    	}
+
+    	public boolean endOfDeck() {
+    		return mCurrent >= mCards.length;
+    	}
+    }
+
+    public static class ImageAdapter extends BaseAdapter {
     	private Context mContext;
-    	private int[] mShownCards;
-    	private int mToShow = 12;
+    	private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
+    	private ArrayList<Integer> mSelected = new ArrayList<Integer>();
 
         public ImageAdapter(Context c) {
             mContext = c;
-            mShownCards = new int[20];
+        }
+
+        public void addCard(int card) {
+        	mShownCards.add(card);
+        	notifyDataSetChanged();
+        }
+
+        public void removeCard(int card) {
+        	for (int ii = 0; ii < mShownCards.size(); ii++) {
+        		if (mShownCards.get(ii) == card) {
+        			mShownCards.remove(ii);
+        		}
+        	}
+        	notifyDataSetChanged();
+        }
+
+        public ArrayList<Integer> getShown() {
+        	return mShownCards;
+        }
+
+        public ArrayList<Integer> getSelected() {
+        	return mSelected;
         }
 
         @Override
         public int getCount() {
-            return mShownCards.length;
+            return mShownCards.size();
         }
 
         @Override
@@ -67,16 +181,22 @@ public class MainActivity extends Activity {
                 imageView = new ImageView(mContext);
                 imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
                 imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                imageView.setPadding(8, 8, 8, 8);
+                imageView.setPadding(1, 1, 1, 1);
+                //imageView.setBackgroundColor()
             } else {
                 imageView = (ImageView) convertView;
             }
 
-            imageView.setImageResource(mImageIds[position+1]);
+            imageView.setImageResource(mImageIds[mShownCards.get(position)]);
             return imageView;
         }
 
-        // references to our images
+        /**
+         * mImageIds contains references to our images
+         * 
+         * image name = "shading * 27 + shape * 9 + color * 3 + number + 1".gif
+         * for zero indexed variables.
+         */
         private Integer[] mImageIds = {
         	null,
         	R.drawable.card_1,  R.drawable.card_2,  R.drawable.card_3,
