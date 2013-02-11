@@ -8,21 +8,11 @@
         android:id="@+id/card_grid"
         android:layout_width="match_parent"
         android:layout_height="0dip"
-        android:layout_weight="1"
-        android:numColumns="3" >
+        android:layout_weight="1.44"
+        android:numColumns="3" 
+        android:listSelector="#00000000">
 
     </GridView>
-
-    <EditText
-        android:id="@+id/messages"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@android:color/darker_gray"
-        android:ems="10"
-        android:enabled="false"
-        android:hint=""
-        android:minLines="3" >
-    </EditText>
 
     <LinearLayout
         android:layout_width="fill_parent"

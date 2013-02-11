@@ -11,16 +11,19 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
+//import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 public class MainActivity extends FragmentActivity {
     /* Every card has 4 attributes */
@@ -34,6 +37,9 @@ public class MainActivity extends FragmentActivity {
 
     /* The number of cards to deal at a time */
     private static final int   N_AT_A_TIME  = 3;
+
+    /* The number of cards to deal at a time */
+    private static final int   NUM_CARDS    = (int) Math.pow(N_VALUES, N_ATTRS);
 
     /*
      * Cards are just integers whose value is:
@@ -54,10 +60,10 @@ public class MainActivity extends FragmentActivity {
 
     /**
      * mSelected is an array of the cards which are currently selected. The
-     * index is the order in which the cards were selected, and the value is the
-     * position of the card in the grid (not the value of the card).
+     * index is which card it is, and the value is whether or not the card is
+     * selected.
      */
-    private ArrayList<Integer> mSelected    = new ArrayList<Integer>();
+    private boolean[]          mSelected;
 
     /**
      * mFound is an array of the cards which make up the previously found sets.
@@ -70,25 +76,57 @@ public class MainActivity extends FragmentActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.pager_layout);
+        mSelected = new boolean[NUM_CARDS];
         mAdapter = new MyPagerAdapter(getSupportFragmentManager(), mShownCards,
                 mSelected, mFound);
         mPager = (ViewPager) findViewById(R.id.pager);
         mPager.setAdapter(mAdapter);
-
-        mDeck = new Deck((int) (Math.pow(N_VALUES, N_ATTRS)));
+        mDeck = new Deck(NUM_CARDS);
+        newGame();
     }
 
-    private static boolean isSet(ArrayList<Integer> cards) {
-        if (cards.size() != N_VALUES) {
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.activity_main, menu);
+        return true;
+    }
+
+    /*
+     * (non-Javadoc) ********************************************************
+     * Begin gameplay logic
+     */
+
+    public void addCard(int card) {
+        mShownCards.add(card);
+    }
+
+    public void removeCard(int card) {
+        for (int ii = 0; ii < mShownCards.size(); ii++) {
+            if (mShownCards.get(ii) == card) {
+                mShownCards.remove(ii);
+            }
+        }
+    }
+
+    /**
+     * Given N_VALUES cards, see if it is a set. To be a set, for all
+     * attributes, all the values have to be the same or all have to be
+     * different.
+     * 
+     * @param cards
+     * @return
+     */
+    public static boolean isSet(int[] cards) {
+        if (cards.length != N_VALUES) {
             return false;
         }
-        boolean allsame = true;
-        boolean alldifferent = true;
         for (int ii = 0, mask = 1; ii < N_ATTRS; ii++, mask *= 3) {
+            boolean allsame = true;
+            boolean alldifferent = true;
             int[] vals = new int[N_VALUES];
             int[] possibles = new int[N_VALUES];
             for (int jj = 0; jj < N_VALUES; jj++) {
-                vals[jj] = (cards.get(jj) % (mask * N_VALUES)) / mask;
+                vals[jj] = (cards[jj] % (mask * N_VALUES)) / mask;
                 if (possibles[vals[jj]] != 0) {
                     alldifferent = false;
                 }
@@ -104,12 +142,145 @@ public class MainActivity extends FragmentActivity {
         return true;
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.activity_main, menu);
-        return true;
+    /**
+     * If we don't know the selected cards, but we know the positions of those
+     * cards, translate the positions in to cards and test those.
+     * 
+     * @param positions
+     * @return
+     */
+    private boolean isSetPositions(int[] positions) {
+        if (positions.length != N_VALUES) {
+            return false;
+        }
+        int[] cards = new int[N_VALUES];
+        for (int ii = 0; ii < N_VALUES; ii++) {
+            cards[ii] = mShownCards.get(positions[ii]);
+        }
+        return isSet(cards);
     }
 
+    public void newGame() {
+        mDeck.shuffle();
+        for (int ii = 0; ii < mSelected.length; ii++) {
+            mSelected[ii] = false;
+        }
+        mFound.clear();
+        mShownCards.clear();
+        deal();
+        mAdapter.refreshShown();
+        mAdapter.refreshFound();
+    }
+
+    /**
+     * Check to see if a set exists among all the cards showing.
+     * @return
+     */
+    public boolean setExists() {
+        if (mShownCards.size() < N_VALUES) {
+            return false;
+        }
+
+        // Loop over all sets of N_VALUES cards.
+        // First start with the cards in positions {0, 1, 2},
+        // then {0, 1, 3}, {0, 1, 4}, ... {0, 1, 11}, {0, 2, 3},
+        // {0, 2, 4}, etc.
+        int[] possSet = new int[N_VALUES];
+        for (int ii = 0; ii < N_VALUES; ii++) {
+            possSet[ii] = ii;
+        }
+        while (true) {
+            if (isSetPositions(possSet)) {
+                return true;
+            }
+            // If it isn't a set, we've got to increment to the next possible
+            // set.
+            for (int ii = N_VALUES - 1; ii >= 0; ii--) {
+                possSet[ii]++;
+                // In most cases, we can just increment the least significant
+                // bit. But once the least significant bit is as high as it can
+                // go, we've got to continue to the next bit and increment that
+                // one.
+                //
+                // The highest each bit can go is only high enough that all the
+                // bits after it can still be less than the number of cards
+                // shown.
+                if (possSet[ii] < mShownCards.size() - N_VALUES + ii + 1) {
+                    // After we've set this bit, we have to set all the
+                    // bits after it.
+                    for (int jj = ii + 1; jj < N_VALUES; jj++) {
+                        possSet[jj] = possSet[jj - 1] + 1;
+                    }
+                    break;
+                }
+                // If this is the most significant bit, then we've tried
+                // everything.
+                if (ii == 0) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    public void deal() {
+        if (mDeck.endOfDeck() && !setExists()) {
+            Toast.makeText(this, "End of Deck!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        while (!mDeck.endOfDeck()
+                && (!setExists() || mShownCards.size() < N_INIT_CARDS))
+        {
+            for (int ii = 0; ii < N_AT_A_TIME; ii++) {
+                addCard(mDeck.nextCard());
+            }
+        }
+        mAdapter.refreshShown();
+    }
+
+    /**
+     * Check to see if the cards that the user selected make up a set.
+     */
+    public void checkSet() {
+        int[] selected = new int[N_VALUES];
+        int jj = 0;
+        for (int ii = 0; ii < mSelected.length; ii++) {
+            if (mSelected[ii]) {
+                selected[jj++] = ii;
+                if (jj >= N_VALUES) {
+                    break;
+                }
+            }
+        }
+        if (jj < N_VALUES) {
+            return;
+        }
+        if (isSet(selected)) {
+            Toast.makeText(this, "Found a set!", Toast.LENGTH_SHORT).show();
+            for (Integer card : selected) {
+                removeCard(card);
+                mFound.add(card);
+            }
+            mAdapter.refreshFound();
+        } else {
+            Toast.makeText(this, "Not a set", Toast.LENGTH_SHORT).show();
+        }
+        for (Integer card : selected) {
+            mSelected[card] = false;
+        }
+        deal();
+        mAdapter.refreshShown();
+    }
+
+    /*
+     * End gameplay logic. Everything below here is dealing with inner classes.
+     * *******************************************************
+     */
+
+    /**
+     * Deck class
+     * 
+     * @author Yuan
+     */
     public static class Deck {
         private int[]  mCards;
         private Random mRand;
@@ -149,15 +320,20 @@ public class MainActivity extends FragmentActivity {
         }
     }
 
+    /**
+     * Pager Adapter
+     * 
+     * @author Yuan
+     */
     public static class MyPagerAdapter extends FragmentPagerAdapter {
-        private Fragment           mGameFragment;
-        private Fragment           mFoundFragment;
-        private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
-        private ArrayList<Integer> mSelected   = new ArrayList<Integer>();
-        private ArrayList<Integer> mFound      = new ArrayList<Integer>();
+        private GameFragment       mGameFragment;
+        private FoundFragment      mFoundFragment;
+        private ArrayList<Integer> mShownCards;
+        private boolean[]          mSelected;
+        private ArrayList<Integer> mFound;
 
         public MyPagerAdapter(FragmentManager fragmentManager,
-                ArrayList<Integer> shown, ArrayList<Integer> selected,
+                ArrayList<Integer> shown, boolean[] selected,
                 ArrayList<Integer> found)
         {
             super(fragmentManager);
@@ -197,24 +373,41 @@ public class MainActivity extends FragmentActivity {
                 return "Unknown";
             }
         }
+
+        public void refreshShown() {
+            if (mGameFragment != null) {
+                mGameFragment.refreshView();
+            }
+        }
+
+        public void refreshFound() {
+            if (mFoundFragment != null) {
+                mFoundFragment.refreshView();
+            }
+        }
     }
 
+    /**
+     * GameFragment
+     * 
+     * @author Yuan
+     */
     public static class GameFragment extends Fragment {
         private ImageAdapter       mAdapter;
-        private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
-        private ArrayList<Integer> mSelected   = new ArrayList<Integer>();
+        private ArrayList<Integer> mShownCards;
+        private boolean[]          mSelected;
 
         /**
          * Create a new instance of GameFragment
          */
         static GameFragment newInstance(ArrayList<Integer> shown,
-                ArrayList<Integer> selected)
+                boolean[] selected)
         {
             GameFragment fragment = new GameFragment();
 
             Bundle args = new Bundle();
             args.putIntegerArrayList("shown", shown);
-            args.putIntegerArrayList("selected", selected);
+            args.putBooleanArray("selected", selected);
             fragment.setArguments(args);
             return fragment;
         }
@@ -229,7 +422,7 @@ public class MainActivity extends FragmentActivity {
             super.onCreate(savedInstanceState);
             if (getArguments() != null) {
                 mShownCards = getArguments().getIntegerArrayList("shown");
-                mSelected = getArguments().getIntegerArrayList("selected");
+                mSelected = getArguments().getBooleanArray("selected");
             }
         }
 
@@ -250,47 +443,48 @@ public class MainActivity extends FragmentActivity {
                 public void onItemClick(AdapterView<?> parent, View v,
                         int position, long id)
                 {
-                    // Toast.makeText(HelloGridView.this, "" + position,
-                    // Toast.LENGTH_SHORT).show();
+                    mAdapter.toggleSelected(position);
+                    ((MainActivity) getActivity()).checkSet();
+                    mAdapter.notifyDataSetChanged();
+                }
+            });
+
+            Button new_game = (Button) v.findViewById(R.id.new_game);
+            new_game.setOnClickListener(new OnClickListener() {
+                
+                @Override
+                public void onClick(View v) {
+                    ((MainActivity) getActivity()).newGame();
                 }
             });
             return v;
         }
+
+        public void refreshView() {
+            mAdapter.notifyDataSetChanged();
+        }
+
+        public ImageAdapter getAdapter() {
+            return mAdapter;
+        }
     }
 
+    /**
+     * ImageAdapter manages the grid used by both the Game and Found fragments
+     * 
+     * @author Yuan
+     */
     public static class ImageAdapter extends BaseAdapter {
         private Context            mContext;
         private ArrayList<Integer> mShownCards;
-        private ArrayList<Integer> mSelected;
+        private boolean[]          mSelected;
 
         public ImageAdapter(Context c, ArrayList<Integer> shown,
-                ArrayList<Integer> selected)
+                boolean[] selected)
         {
             mContext = c;
             mShownCards = shown;
             mSelected = selected;
-        }
-
-        public void addCard(int card) {
-            mShownCards.add(card);
-            notifyDataSetChanged();
-        }
-
-        public void removeCard(int card) {
-            for (int ii = 0; ii < mShownCards.size(); ii++) {
-                if (mShownCards.get(ii) == card) {
-                    mShownCards.remove(ii);
-                }
-            }
-            notifyDataSetChanged();
-        }
-
-        public ArrayList<Integer> getShown() {
-            return mShownCards;
-        }
-
-        public ArrayList<Integer> getSelected() {
-            return mSelected;
         }
 
         @Override
@@ -315,19 +509,53 @@ public class MainActivity extends FragmentActivity {
             if (convertView == null) { // if it's not recycled, initialize some
                                        // attributes
                 imageView = new ImageView(mContext);
-                imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
                 imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                imageView.setPadding(1, 1, 1, 1);
             } else {
                 imageView = (ImageView) convertView;
             }
 
-            imageView.setBackgroundColor(Color.BLACK);
+            if (isSelected(position)) {
+                imageView.setBackgroundColor(Color.YELLOW);
+            } else {
+                imageView.setBackgroundColor(Color.BLACK);
+            }
             imageView.setImageResource(mImageIds[mShownCards.get(position)]);
             return imageView;
         }
+
+        private boolean isSelected(int position) {
+            if (mSelected == null) {
+                return false;
+            }
+            if (position >= mShownCards.size()) {
+                return false;
+            }
+            if (mShownCards.get(position) >= mSelected.length) {
+                return false;
+            }
+            return mSelected[mShownCards.get(position)];
+        }
+
+        public void toggleSelected(int position) {
+            if (mSelected == null) {
+                return;
+            }
+            if (position >= mShownCards.size()) {
+                return;
+            }
+            int card = mShownCards.get(position);
+            if (card >= mSelected.length) {
+                return;
+            }
+            mSelected[card] = !mSelected[card];
+        }
     }
 
+    /**
+     * FoundFragment
+     * 
+     * @author Yuan
+     */
     public static class FoundFragment extends Fragment {
         private ImageAdapter       mAdapter;
         private ArrayList<Integer> mFound = new ArrayList<Integer>();
@@ -362,10 +590,15 @@ public class MainActivity extends FragmentActivity {
                 Bundle savedInstanceState)
         {
             View v = inflater.inflate(R.layout.activity_main, container, false);
+            // XXX should have a different view...
             GridView grid = (GridView) v.findViewById(R.id.card_grid);
             mAdapter = new ImageAdapter(getActivity(), mFound, null);
             grid.setAdapter(mAdapter);
             return v;
+        }
+
+        public void refreshView() {
+            mAdapter.notifyDataSetChanged();
         }
     }
 
