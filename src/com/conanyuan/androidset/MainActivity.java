@@ -108,6 +108,14 @@ public class MainActivity extends FragmentActivity {
         }
     }
 
+    public void replaceCard(int card, int newcard) {
+        for (int ii = 0; ii < mShownCards.size(); ii++) {
+            if (mShownCards.get(ii) == card) {
+                mShownCards.set(ii, newcard);
+            }
+        }
+    }
+
     /**
      * Given N_VALUES cards, see if it is a set. To be a set, for all
      * attributes, all the values have to be the same or all have to be
@@ -242,29 +250,49 @@ public class MainActivity extends FragmentActivity {
      */
     public void checkSet() {
         int[] selected = new int[N_VALUES];
-        int jj = 0;
-        for (int ii = 0; ii < mSelected.length; ii++) {
-            if (mSelected[ii]) {
-                selected[jj++] = ii;
-                if (jj >= N_VALUES) {
+        int[] selpos = new int[N_VALUES];
+        int num_selected = 0;
+        for (int ii = 0; ii < mShownCards.size(); ii++) {
+            if (mSelected[mShownCards.get(ii)]) {
+                selected[num_selected] = mShownCards.get(ii);
+                selpos[num_selected] = ii;
+                num_selected++;
+                if (num_selected >= N_VALUES) {
                     break;
                 }
             }
         }
-        if (jj < N_VALUES) {
+        if (num_selected < N_VALUES) {
             return;
         }
+
         if (isSet(selected)) {
             Toast.makeText(this, "Found a set!", Toast.LENGTH_SHORT).show();
-            for (Integer card : selected) {
-                removeCard(card);
-                mFound.add(card);
+            for (int pos: selpos) {
+                mFound.add(mShownCards.get(pos));
             }
             mAdapter.refreshFound();
+            if (mShownCards.size() <= N_INIT_CARDS && !mDeck.endOfDeck()) {
+                for (int pos: selpos) {
+                    mShownCards.set(pos, mDeck.nextCard());
+                }
+            } else {
+                int num_shown = mShownCards.size();
+                int ii = 0;
+                for (int pos = num_shown-1; pos > num_shown-4; pos--) {
+                    if (mSelected[mShownCards.get(pos)]) {
+                        mShownCards.remove(pos);
+                    } else {
+                        mShownCards.set(selpos[ii], mShownCards.get(pos));
+                        mShownCards.remove(pos);
+                        ii++;
+                    }
+                }
+            }
         } else {
             Toast.makeText(this, "Not a set", Toast.LENGTH_SHORT).show();
         }
-        for (Integer card : selected) {
+        for (int card : selected) {
             mSelected[card] = false;
         }
         deal();
