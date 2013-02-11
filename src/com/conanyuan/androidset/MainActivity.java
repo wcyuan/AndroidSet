@@ -1,17 +1,15 @@
 package com.conanyuan.androidset;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Random;
 
 import android.os.Bundle;
-import android.app.Activity;
 import android.content.Context;
+import android.graphics.Color;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
-import android.support.v4.app.ListFragment;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -20,72 +18,90 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 
 public class MainActivity extends FragmentActivity {
-	/* Every card has 4 attributes */
-	private static final int N_ATTRS      = 4;
+    /* Every card has 4 attributes */
+    private static final int   N_ATTRS      = 4;
 
-	/* Ever attribute has 3 possible values */
-	private static final int N_VALUES     = 3;
+    /* Ever attribute has 3 possible values */
+    private static final int   N_VALUES     = 3;
 
-	/* The number of cards shown initially */
-	private static final int N_INIT_CARDS = 12;
+    /* The number of cards shown initially */
+    private static final int   N_INIT_CARDS = 12;
 
-	/* The number of cards to deal at a time */
-	private static final int N_AT_A_TIME = 3;
+    /* The number of cards to deal at a time */
+    private static final int   N_AT_A_TIME  = 3;
 
-	/*
-	 * Cards are just integers whose value is:
-	 * "shading * 27 + shape * 9 + color * 3 + number + 1".gif
-	 * where each attribute takes a value from 0 to 2
-	 */
+    /*
+     * Cards are just integers whose value is:
+     * "shading * 27 + shape * 9 + color * 3 + number + 1".gif where each
+     * attribute takes a value from 0 to 2
+     */
 
-	private Deck mDeck;
-	private ViewPager mPager;
-	private MyPagerAdapter mAdapter;
-	
+    private Deck               mDeck;
+    private ViewPager          mPager;
+    private MyPagerAdapter     mAdapter;
+
+    /**
+     * mShownCard is an array of the cards being shown. The index into the array
+     * is the position in the grid. The value at that index is the card being
+     * show in that spot in the grid.
+     */
+    private ArrayList<Integer> mShownCards  = new ArrayList<Integer>();
+
+    /**
+     * mSelected is an array of the cards which are currently selected. The
+     * index is the order in which the cards were selected, and the value is the
+     * position of the card in the grid (not the value of the card).
+     */
+    private ArrayList<Integer> mSelected    = new ArrayList<Integer>();
+
+    /**
+     * mFound is an array of the cards which make up the previously found sets.
+     * The index is the order in which the cards were found, and the values are
+     * the cards that were found.
+     */
+    private ArrayList<Integer> mFound       = new ArrayList<Integer>();
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.pager_layout);
-		mAdapter = new MyPagerAdapter(getSupportFragmentManager());
-		mPager = (ViewPager) findViewById(R.id.pager);
-		mPager.setAdapter(mAdapter);
+        mAdapter = new MyPagerAdapter(getSupportFragmentManager(), mShownCards,
+                mSelected, mFound);
+        mPager = (ViewPager) findViewById(R.id.pager);
+        mPager.setAdapter(mAdapter);
 
-        mDeck = new Deck((int)(Math.pow(N_VALUES, N_ATTRS)));
+        mDeck = new Deck((int) (Math.pow(N_VALUES, N_ATTRS)));
     }
 
     private static boolean isSet(ArrayList<Integer> cards) {
-    	if (cards.size() != N_VALUES) {
-    		return false;
-    	}
-		boolean allsame = true;
-		boolean alldifferent = true;
-    	for (int ii = 0, mask = 1;
-    		 ii < N_ATTRS;
-    		 ii++, mask *= 3)
-    	{
-    		int[] vals = new int[N_VALUES];
-    		int[] possibles = new int[N_VALUES];
-    		for (int jj = 0; jj < N_VALUES; jj++) {
-    			vals[jj] = (cards.get(jj) % (mask * N_VALUES)) / mask;
-    			if (possibles[vals[jj]] != 0) {
-    				alldifferent = false;
-    			}
-    			possibles[vals[jj]] = 1;
-    			if (jj > 0 && vals[jj] != vals[0]) {
-    				allsame = false;
-    			}
-    		}
-    		if (!allsame && !alldifferent) {
-    			return false;
-    		}
-    	}
-    	return true;
+        if (cards.size() != N_VALUES) {
+            return false;
+        }
+        boolean allsame = true;
+        boolean alldifferent = true;
+        for (int ii = 0, mask = 1; ii < N_ATTRS; ii++, mask *= 3) {
+            int[] vals = new int[N_VALUES];
+            int[] possibles = new int[N_VALUES];
+            for (int jj = 0; jj < N_VALUES; jj++) {
+                vals[jj] = (cards.get(jj) % (mask * N_VALUES)) / mask;
+                if (possibles[vals[jj]] != 0) {
+                    alldifferent = false;
+                }
+                possibles[vals[jj]] = 1;
+                if (jj > 0 && vals[jj] != vals[0]) {
+                    allsame = false;
+                }
+            }
+            if (!allsame && !alldifferent) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -95,145 +111,186 @@ public class MainActivity extends FragmentActivity {
     }
 
     public static class Deck {
-    	private int[] mCards;
-    	private Random mRand;
-    	private int mCurrent;
+        private int[]  mCards;
+        private Random mRand;
+        private int    mCurrent;
 
-    	public Deck(int nCards) {
-    		mCards = new int[nCards];
-    		for (int i = 0; i < nCards; i++) {
-    			mCards[i] = i;
-    		}
-    		mRand = new Random();
-    		shuffle();
-    	}
+        public Deck(int nCards) {
+            mCards = new int[nCards];
+            for (int i = 0; i < nCards; i++) {
+                mCards[i] = i;
+            }
+            mRand = new Random();
+            shuffle();
+        }
 
-    	private void shuffle() {
+        private void shuffle() {
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < mCards.length; j++) {
                     int k = Math.abs(mRand.nextInt() % mCards.length);
                     /* swap */
                     int temp = mCards[j];
                     mCards[j] = mCards[k];
-                    mCards[k]=temp;
+                    mCards[k] = temp;
                 }
             }
             mCurrent = 0;
-     	}
+        }
 
-    	public int nextCard() {
-    		if (endOfDeck()) {
-    			shuffle();
-    		}
-    		return mCards[mCurrent++];
-    	}
+        public int nextCard() {
+            if (endOfDeck()) {
+                shuffle();
+            }
+            return mCards[mCurrent++];
+        }
 
-    	public boolean endOfDeck() {
-    		return mCurrent >= mCards.length;
-    	}
+        public boolean endOfDeck() {
+            return mCurrent >= mCards.length;
+        }
     }
 
-	public static class MyPagerAdapter extends FragmentPagerAdapter {
-		private Fragment mGameFragment;
-		private Fragment mFoundFragment;
-		public MyPagerAdapter(FragmentManager fragmentManager) {
-			super(fragmentManager);
-		}
+    public static class MyPagerAdapter extends FragmentPagerAdapter {
+        private Fragment           mGameFragment;
+        private Fragment           mFoundFragment;
+        private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
+        private ArrayList<Integer> mSelected   = new ArrayList<Integer>();
+        private ArrayList<Integer> mFound      = new ArrayList<Integer>();
 
-		@Override
-		public int getCount() {
-			return 2;
-		}
+        public MyPagerAdapter(FragmentManager fragmentManager,
+                ArrayList<Integer> shown, ArrayList<Integer> selected,
+                ArrayList<Integer> found)
+        {
+            super(fragmentManager);
+            mShownCards = shown;
+            mSelected = selected;
+            mFound = found;
+        }
 
-		@Override
-		public Fragment getItem(int position) {
-			switch (position) {
-			case 0:
-				mGameFragment = GameFragment.newInstance();
-				return mGameFragment;
-			case 1:
-				mFoundFragment = FoundFragment.newInstance();
-				return mFoundFragment;
-			default:
-				return null;
-			}
-		}
+        @Override
+        public int getCount() {
+            return 2;
+        }
 
-		@Override
-		public CharSequence getPageTitle(int position) {
-			switch (position) {
-			case 0:
-				return "Play Game";
-			case 1:
-				return "Previous Sets";
-			default:
-				return "Unknown";
-			}
-		}
-	}
+        @Override
+        public Fragment getItem(int position) {
+            switch (position) {
+            case 0:
+                mGameFragment = GameFragment
+                        .newInstance(mShownCards, mSelected);
+                return mGameFragment;
+            case 1:
+                mFoundFragment = FoundFragment.newInstance(mFound);
+                return mFoundFragment;
+            default:
+                return null;
+            }
+        }
 
-	public static class GameFragment extends Fragment {
-		private ImageAdapter mAdapter;
+        @Override
+        public CharSequence getPageTitle(int position) {
+            switch (position) {
+            case 0:
+                return "Play Game";
+            case 1:
+                return "Previous Sets";
+            default:
+                return "Unknown";
+            }
+        }
+    }
 
-		/**
-		 * Create a new instance of GameFragment
-		 */
-		static GameFragment newInstance() {
-			GameFragment fragment = new GameFragment();
-			return fragment;
-		}
+    public static class GameFragment extends Fragment {
+        private ImageAdapter       mAdapter;
+        private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
+        private ArrayList<Integer> mSelected   = new ArrayList<Integer>();
 
-		/**
-		 * The Fragment's UI is just a simple text view showing its instance
-		 * number.
-		 */
-		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			View v = inflater.inflate(R.layout.activity_main, container,
-					false);
-	        GridView grid = (GridView) v.findViewById(R.id.card_grid);
-	        mAdapter = new ImageAdapter(getActivity());
-	        grid.setAdapter(mAdapter);
+        /**
+         * Create a new instance of GameFragment
+         */
+        static GameFragment newInstance(ArrayList<Integer> shown,
+                ArrayList<Integer> selected)
+        {
+            GameFragment fragment = new GameFragment();
 
-	        grid.setOnItemClickListener(new OnItemClickListener() {
-	            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-	            	//Toast.makeText(HelloGridView.this, "" + position, Toast.LENGTH_SHORT).show();
-	            }
-	        });			
-			return v;
-		}
-	}
+            Bundle args = new Bundle();
+            args.putIntegerArrayList("shown", shown);
+            args.putIntegerArrayList("selected", selected);
+            fragment.setArguments(args);
+            return fragment;
+        }
 
-	public static class ImageAdapter extends BaseAdapter {
-    	private Context mContext;
-    	private ArrayList<Integer> mShownCards = new ArrayList<Integer>();
-    	private ArrayList<Integer> mSelected = new ArrayList<Integer>();
+        /*
+         * (non-Javadoc)
+         * 
+         * @see android.support.v4.app.Fragment#onCreate(android.os.Bundle)
+         */
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            if (getArguments() != null) {
+                mShownCards = getArguments().getIntegerArrayList("shown");
+                mSelected = getArguments().getIntegerArrayList("selected");
+            }
+        }
 
-        public ImageAdapter(Context c) {
+        /**
+         * The Fragment's UI is just a simple text view showing its instance
+         * number.
+         */
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                Bundle savedInstanceState)
+        {
+            View v = inflater.inflate(R.layout.activity_main, container, false);
+            GridView grid = (GridView) v.findViewById(R.id.card_grid);
+            mAdapter = new ImageAdapter(getActivity(), mShownCards, mSelected);
+            grid.setAdapter(mAdapter);
+
+            grid.setOnItemClickListener(new OnItemClickListener() {
+                public void onItemClick(AdapterView<?> parent, View v,
+                        int position, long id)
+                {
+                    // Toast.makeText(HelloGridView.this, "" + position,
+                    // Toast.LENGTH_SHORT).show();
+                }
+            });
+            return v;
+        }
+    }
+
+    public static class ImageAdapter extends BaseAdapter {
+        private Context            mContext;
+        private ArrayList<Integer> mShownCards;
+        private ArrayList<Integer> mSelected;
+
+        public ImageAdapter(Context c, ArrayList<Integer> shown,
+                ArrayList<Integer> selected)
+        {
             mContext = c;
+            mShownCards = shown;
+            mSelected = selected;
         }
 
         public void addCard(int card) {
-        	mShownCards.add(card);
-        	notifyDataSetChanged();
+            mShownCards.add(card);
+            notifyDataSetChanged();
         }
 
         public void removeCard(int card) {
-        	for (int ii = 0; ii < mShownCards.size(); ii++) {
-        		if (mShownCards.get(ii) == card) {
-        			mShownCards.remove(ii);
-        		}
-        	}
-        	notifyDataSetChanged();
+            for (int ii = 0; ii < mShownCards.size(); ii++) {
+                if (mShownCards.get(ii) == card) {
+                    mShownCards.remove(ii);
+                }
+            }
+            notifyDataSetChanged();
         }
 
         public ArrayList<Integer> getShown() {
-        	return mShownCards;
+            return mShownCards;
         }
 
         public ArrayList<Integer> getSelected() {
-        	return mSelected;
+            return mSelected;
         }
 
         @Override
@@ -255,78 +312,95 @@ public class MainActivity extends FragmentActivity {
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             ImageView imageView;
-            if (convertView == null) {  // if it's not recycled, initialize some attributes
+            if (convertView == null) { // if it's not recycled, initialize some
+                                       // attributes
                 imageView = new ImageView(mContext);
                 imageView.setLayoutParams(new GridView.LayoutParams(85, 85));
                 imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 imageView.setPadding(1, 1, 1, 1);
-                //imageView.setBackgroundColor()
             } else {
                 imageView = (ImageView) convertView;
             }
 
+            imageView.setBackgroundColor(Color.BLACK);
             imageView.setImageResource(mImageIds[mShownCards.get(position)]);
             return imageView;
         }
     }
 
-	public static class FoundFragment extends Fragment {
-		private ImageAdapter mAdapter;
+    public static class FoundFragment extends Fragment {
+        private ImageAdapter       mAdapter;
+        private ArrayList<Integer> mFound = new ArrayList<Integer>();
 
-		/**
-		 * Create a new instance of FoundFragment
-		 */
-		static FoundFragment newInstance() {
-			FoundFragment fragment = new FoundFragment();
-			return fragment;
-		}
+        /**
+         * Create a new instance of FoundFragment
+         */
+        static FoundFragment newInstance(ArrayList<Integer> found) {
+            FoundFragment fragment = new FoundFragment();
 
-		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			View v = inflater.inflate(R.layout.activity_main, container,
-					false);
-	        GridView grid = (GridView) v.findViewById(R.id.card_grid);
-	        mAdapter = new ImageAdapter(getActivity());
-	        grid.setAdapter(mAdapter);
-			return v;
-		}
-	}
+            Bundle args = new Bundle();
+            args.putIntegerArrayList("found", found);
+            fragment.setArguments(args);
+            return fragment;
+        }
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see android.support.v4.app.Fragment#onCreate(android.os.Bundle)
+         */
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            if (getArguments() != null) {
+                mFound = getArguments().getIntegerArrayList("found");
+            }
+        }
+
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                Bundle savedInstanceState)
+        {
+            View v = inflater.inflate(R.layout.activity_main, container, false);
+            GridView grid = (GridView) v.findViewById(R.id.card_grid);
+            mAdapter = new ImageAdapter(getActivity(), mFound, null);
+            grid.setAdapter(mAdapter);
+            return v;
+        }
+    }
 
     /**
      * mImageIds contains references to our images
      * 
-     * image name = "shading * 27 + shape * 9 + color * 3 + number + 1".gif
-     * for zero indexed variables.
+     * image name = "shading * 27 + shape * 9 + color * 3 + number + 1".gif for
+     * zero indexed variables.
      */
-    private static Integer[] mImageIds = {
-    	null,
-    	R.drawable.card_1,  R.drawable.card_2,  R.drawable.card_3,
-    	R.drawable.card_4,  R.drawable.card_5,  R.drawable.card_6,
-    	R.drawable.card_7,  R.drawable.card_8,  R.drawable.card_9,
-    	R.drawable.card_10, R.drawable.card_11, R.drawable.card_12,
-    	R.drawable.card_13, R.drawable.card_14, R.drawable.card_15,
-    	R.drawable.card_16, R.drawable.card_17, R.drawable.card_18,
-    	R.drawable.card_19, R.drawable.card_20, R.drawable.card_21,
-    	R.drawable.card_22, R.drawable.card_23, R.drawable.card_24,
-    	R.drawable.card_25, R.drawable.card_26, R.drawable.card_27,
-    	R.drawable.card_28, R.drawable.card_29, R.drawable.card_30,
-    	R.drawable.card_31, R.drawable.card_32, R.drawable.card_33,
-    	R.drawable.card_34, R.drawable.card_35, R.drawable.card_36,
-    	R.drawable.card_37, R.drawable.card_38, R.drawable.card_39,
-    	R.drawable.card_40, R.drawable.card_41, R.drawable.card_42,
-    	R.drawable.card_43, R.drawable.card_44, R.drawable.card_45,
-    	R.drawable.card_46, R.drawable.card_47, R.drawable.card_48,
-    	R.drawable.card_49, R.drawable.card_50, R.drawable.card_51,
-    	R.drawable.card_52, R.drawable.card_53, R.drawable.card_54,
-    	R.drawable.card_55, R.drawable.card_56, R.drawable.card_57,
-    	R.drawable.card_58, R.drawable.card_59, R.drawable.card_60,
-    	R.drawable.card_61, R.drawable.card_62, R.drawable.card_63,
-    	R.drawable.card_64, R.drawable.card_65, R.drawable.card_66,
-    	R.drawable.card_67, R.drawable.card_68, R.drawable.card_69,
-    	R.drawable.card_70, R.drawable.card_71, R.drawable.card_72,
-    	R.drawable.card_73, R.drawable.card_74, R.drawable.card_75,
-    	R.drawable.card_76, R.drawable.card_77, R.drawable.card_78,
-    	R.drawable.card_79, R.drawable.card_80, R.drawable.card_81,
-    };
+    private static Integer[] mImageIds = { R.drawable.card_1,
+            R.drawable.card_2, R.drawable.card_3, R.drawable.card_4,
+            R.drawable.card_5, R.drawable.card_6, R.drawable.card_7,
+            R.drawable.card_8, R.drawable.card_9, R.drawable.card_10,
+            R.drawable.card_11, R.drawable.card_12, R.drawable.card_13,
+            R.drawable.card_14, R.drawable.card_15, R.drawable.card_16,
+            R.drawable.card_17, R.drawable.card_18, R.drawable.card_19,
+            R.drawable.card_20, R.drawable.card_21, R.drawable.card_22,
+            R.drawable.card_23, R.drawable.card_24, R.drawable.card_25,
+            R.drawable.card_26, R.drawable.card_27, R.drawable.card_28,
+            R.drawable.card_29, R.drawable.card_30, R.drawable.card_31,
+            R.drawable.card_32, R.drawable.card_33, R.drawable.card_34,
+            R.drawable.card_35, R.drawable.card_36, R.drawable.card_37,
+            R.drawable.card_38, R.drawable.card_39, R.drawable.card_40,
+            R.drawable.card_41, R.drawable.card_42, R.drawable.card_43,
+            R.drawable.card_44, R.drawable.card_45, R.drawable.card_46,
+            R.drawable.card_47, R.drawable.card_48, R.drawable.card_49,
+            R.drawable.card_50, R.drawable.card_51, R.drawable.card_52,
+            R.drawable.card_53, R.drawable.card_54, R.drawable.card_55,
+            R.drawable.card_56, R.drawable.card_57, R.drawable.card_58,
+            R.drawable.card_59, R.drawable.card_60, R.drawable.card_61,
+            R.drawable.card_62, R.drawable.card_63, R.drawable.card_64,
+            R.drawable.card_65, R.drawable.card_66, R.drawable.card_67,
+            R.drawable.card_68, R.drawable.card_69, R.drawable.card_70,
+            R.drawable.card_71, R.drawable.card_72, R.drawable.card_73,
+            R.drawable.card_74, R.drawable.card_75, R.drawable.card_76,
+            R.drawable.card_77, R.drawable.card_78, R.drawable.card_79,
+            R.drawable.card_80, R.drawable.card_81, };
 }
