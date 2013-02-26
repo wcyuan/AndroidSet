@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import android.os.Bundle;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.content.Context;
 import android.graphics.Color;
 import android.support.v4.app.Fragment;
@@ -81,13 +83,40 @@ public class MainActivity extends FragmentActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.pager_layout);
-        mSelected = new boolean[NUM_CARDS];
+        if (savedInstanceState != null) {
+            mFound = savedInstanceState.getIntegerArrayList("mFound");
+            mSets = savedInstanceState.getIntegerArrayList("mSets");
+            mShownCards = savedInstanceState.getIntegerArrayList("mShownCards");
+            mSelected = savedInstanceState.getBooleanArray("mSelected");
+            mDeck = savedInstanceState.getParcelable("mDeck");
+        } else {
+            mSelected = new boolean[NUM_CARDS];
+            mDeck = new Deck(NUM_CARDS);
+        }
         mAdapter = new MyPagerAdapter(getSupportFragmentManager(), mShownCards,
                 mSelected, mFound, mSets);
         mPager = (ViewPager) findViewById(R.id.pager);
         mPager.setAdapter(mAdapter);
-        mDeck = new Deck(NUM_CARDS);
-        newGame();
+        if (savedInstanceState == null) {
+            newGame();
+        }
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
+     * android.support.v4.app.FragmentActivity#onSaveInstanceState(android.os
+     * .Bundle)
+     */
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putIntegerArrayList("mFound", mFound);
+        outState.putIntegerArrayList("mSets", mSets);
+        outState.putIntegerArrayList("mShownCards", mShownCards);
+        outState.putBooleanArray("mSelected", mSelected);
+        outState.putParcelable("mDeck", mDeck);
     }
 
     @Override
@@ -263,7 +292,9 @@ public class MainActivity extends FragmentActivity {
         }
 
         if (isSet(selected)) {
-            Toast.makeText(this, "Found a set!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this,
+                    "Found a set!  (Out of " + (mSets.size()/3) + " sets in view)",
+                    Toast.LENGTH_SHORT).show();
             for (int pos : selpos) {
                 mFound.add(mShownCards.get(pos));
             }
@@ -305,7 +336,7 @@ public class MainActivity extends FragmentActivity {
      * 
      * @author Yuan
      */
-    public static class Deck {
+    public static class Deck implements Parcelable {
         private int[]  mCards;
         private Random mRand;
         private int    mCurrent;
@@ -342,6 +373,36 @@ public class MainActivity extends FragmentActivity {
         public boolean endOfDeck() {
             return mCurrent >= mCards.length;
         }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        private Deck(Parcel in) {
+            mRand = new Random();
+            mCurrent = in.readInt();
+            in.readIntArray(mCards);
+        }
+
+        @Override
+        public void writeToParcel(Parcel out, int flags) {
+            out.writeInt(mCurrent);
+            out.writeIntArray(mCards);
+        }
+
+        public static final Parcelable.Creator<Deck> CREATOR =
+            new Parcelable.Creator<Deck>() {
+                public Deck createFromParcel(Parcel in)
+                {
+                    return new Deck(in);
+                }
+
+                public Deck[] newArray(int size)
+                {
+                    return new Deck[size];
+                }
+        };
     }
 
     /**
@@ -351,8 +412,8 @@ public class MainActivity extends FragmentActivity {
      */
     public static class MyPagerAdapter extends FragmentPagerAdapter {
         private GameFragment       mGameFragment;
-        private ImageGridFragment      mFoundFragment;
-        private ImageGridFragment      mShowFragment;
+        private ImageGridFragment  mFoundFragment;
+        private ImageGridFragment  mShowFragment;
         private ArrayList<Integer> mShownCards;
         private boolean[]          mSelected;
         private ArrayList<Integer> mFound;
