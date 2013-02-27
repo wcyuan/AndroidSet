@@ -12,6 +12,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.view.ViewPager;
 //import android.util.Log;
 import android.view.LayoutInflater;
@@ -99,6 +100,8 @@ public class MainActivity extends FragmentActivity {
         mPager.setAdapter(mAdapter);
         if (savedInstanceState == null) {
             newGame();
+        } else {
+            mAdapter.refreshFragments(this);
         }
     }
 
@@ -456,6 +459,10 @@ public class MainActivity extends FragmentActivity {
             }
         }
 
+        private String getFragmentTag(int pos) {
+            return "android:switcher:" + R.id.pager + ":" + pos;
+        }
+
         @Override
         public CharSequence getPageTitle(int position) {
             switch (position) {
@@ -486,6 +493,19 @@ public class MainActivity extends FragmentActivity {
             if (mShowFragment != null) {
                 mShowFragment.refreshView();
             }
+        }
+
+        public void refreshFragments(FragmentActivity activity)
+        {
+            FragmentManager fm = activity.getSupportFragmentManager();
+            FragmentTransaction ft = fm.beginTransaction();
+            for (int ii = 0; ii < getCount(); ii++) {
+                Fragment frag = fm.findFragmentByTag(getFragmentTag(ii));
+                if (frag != null) {
+                    ft.remove(frag);
+                }
+            }
+            ft.commit();
         }
     }
 
