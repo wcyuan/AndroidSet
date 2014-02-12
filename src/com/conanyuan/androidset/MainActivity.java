@@ -87,6 +87,8 @@ public class MainActivity extends FragmentActivity {
      */
     private boolean            mFindAll     = false;
 
+    private boolean            mShowNSets   = true;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -205,6 +207,41 @@ public class MainActivity extends FragmentActivity {
         deal();
         mAdapter.refreshShown();
         mAdapter.refreshFound();
+    }
+
+    public String toggleMode() {
+        mFindAll = !mFindAll;
+        newGame();
+        if (mFindAll) {
+            return "FindAll";
+        } else {
+            return "Normal";
+        }
+    }
+
+    public String newGameText() {
+        if ((mFindAll && mFound.size() == mSets.size()) || (!mFindAll && mDeck
+                                                                    .endOfDeck() && !setExists()))
+        {
+            return "Game Over";
+        }
+        return "New Game";
+    }
+
+    public String setNSetsText(boolean clicked) {
+        if (clicked) {
+            mShowNSets = !mShowNSets;
+        }
+        if (!mShowNSets) {
+            return "# Sets";
+        } else if (mFindAll) {
+            return "[ " + (mFound.size() / 3)
+                   + "/"
+                   + (mSets.size() / 3)
+                   + " ] found";
+        } else {
+            return (mSets.size() / 3) + " Sets";
+        }
     }
 
     /**
@@ -559,6 +596,9 @@ public class MainActivity extends FragmentActivity {
         private ImageAdapter       mAdapter;
         private ArrayList<Integer> mShownCards;
         private boolean[]          mSelected;
+        private Button             mToggleSets;
+        private Button             mToggleMode;
+        private Button             mNewGameButton;
 
         /**
          * Create a new instance of GameFragment
@@ -612,18 +652,40 @@ public class MainActivity extends FragmentActivity {
                 }
             });
 
-            Button new_game = (Button) v.findViewById(R.id.new_game);
-            new_game.setOnClickListener(new OnClickListener() {
-
+            mNewGameButton = (Button) v.findViewById(R.id.new_game);
+            mNewGameButton.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     ((MainActivity) getActivity()).newGame();
                 }
             });
+
+            mToggleMode = (Button) v.findViewById(R.id.toggle_mode);
+            mToggleMode.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Button b = (Button) v;
+                    b.setText(((MainActivity) getActivity()).toggleMode());
+                }
+            });
+
+            mToggleSets = (Button) v.findViewById(R.id.toggle_nsets);
+            mToggleSets.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Button b = (Button) v;
+                    b.setText(((MainActivity) getActivity()).setNSetsText(true));
+                }
+            });
+
             return v;
         }
 
         public void refreshView() {
+            mToggleSets.setText(((MainActivity) getActivity())
+                    .setNSetsText(false));
+            mNewGameButton
+                    .setText(((MainActivity) getActivity()).newGameText());
             mAdapter.notifyDataSetChanged();
         }
 

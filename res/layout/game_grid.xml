@@ -16,7 +16,14 @@
 
     <LinearLayout
         android:layout_width="fill_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content" >
+
+        <Button
+            android:id="@+id/toggle_mode"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/default_toggle" />
 
         <Button
             android:id="@+id/new_game"
@@ -24,6 +31,14 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/new_game" />
+
+        <Button
+            android:id="@+id/toggle_nsets"
+            style="?android:attr/buttonStyleSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/default_nsets" />
+
     </LinearLayout>
 
 </LinearLayout>
