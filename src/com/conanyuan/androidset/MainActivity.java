@@ -100,6 +100,7 @@ public class MainActivity extends FragmentActivity {
             mSelected = savedInstanceState.getBooleanArray("mSelected");
             mDeck = savedInstanceState.getParcelable("mDeck");
             mFindAll = savedInstanceState.getBoolean("mFindAll");
+            mShowNSets = savedInstanceState.getBoolean("mShowNSets");
         } else {
             mSelected = new boolean[NUM_CARDS];
             mDeck = new Deck(NUM_CARDS);
@@ -130,6 +131,7 @@ public class MainActivity extends FragmentActivity {
         outState.putBooleanArray("mSelected", mSelected);
         outState.putParcelable("mDeck", mDeck);
         outState.putBoolean("mFindAll", mFindAll);
+        outState.putBoolean("mShowNSets", mShowNSets);
         super.onSaveInstanceState(outState);
     }
 
@@ -209,9 +211,11 @@ public class MainActivity extends FragmentActivity {
         mAdapter.refreshFound();
     }
 
-    public String toggleMode() {
-        mFindAll = !mFindAll;
-        newGame();
+    public String toggleMode(boolean clicked) {
+        if (clicked) {
+            mFindAll = !mFindAll;
+            newGame();
+        }
         if (mFindAll) {
             return "FindAll";
         } else {
@@ -670,7 +674,7 @@ public class MainActivity extends FragmentActivity {
                 @Override
                 public void onClick(View v) {
                     Button b = (Button) v;
-                    b.setText(((MainActivity) getActivity()).toggleMode());
+                    b.setText(((MainActivity) getActivity()).toggleMode(true));
                 }
             });
 
@@ -691,6 +695,8 @@ public class MainActivity extends FragmentActivity {
         public void refreshView() {
             mToggleSets.setText(((MainActivity) getActivity())
                     .setNSetsText(false));
+            mToggleMode.setText(((MainActivity) getActivity())
+                    .toggleMode(false));
             mNewGameButton
                     .setText(((MainActivity) getActivity()).newGameText());
             mAdapter.notifyDataSetChanged();
