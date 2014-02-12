@@ -41,7 +41,7 @@ public class MainActivity extends FragmentActivity {
     /* The number of cards to deal at a time */
     private static final int   N_AT_A_TIME  = 3;
 
-    /* The number of cards to deal at a time */
+    /* The total number of cards */
     private static final int   NUM_CARDS    = (int) Math.pow(N_VALUES, N_ATTRS);
 
     /*
@@ -80,6 +80,13 @@ public class MainActivity extends FragmentActivity {
      */
     private ArrayList<Integer> mSets        = new ArrayList<Integer>();
 
+    /**
+     * If mFindAll is false, we play a normal game and deal cards every time a
+     * set is found. If mFindAll is true, we only deal once (enough cards to
+     * have at least one set), and the user has to find all the sets.
+     */
+    private boolean            mFindAll     = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,6 +97,7 @@ public class MainActivity extends FragmentActivity {
             mShownCards = savedInstanceState.getIntegerArrayList("mShownCards");
             mSelected = savedInstanceState.getBooleanArray("mSelected");
             mDeck = savedInstanceState.getParcelable("mDeck");
+            mFindAll = savedInstanceState.getBoolean("mFindAll");
         } else {
             mSelected = new boolean[NUM_CARDS];
             mDeck = new Deck(NUM_CARDS);
@@ -119,6 +127,7 @@ public class MainActivity extends FragmentActivity {
         outState.putIntegerArrayList("mShownCards", mShownCards);
         outState.putBooleanArray("mSelected", mSelected);
         outState.putParcelable("mDeck", mDeck);
+        outState.putBoolean("mFindAll", mFindAll);
         super.onSaveInstanceState(outState);
     }
 
@@ -272,6 +281,29 @@ public class MainActivity extends FragmentActivity {
         mAdapter.refreshShown();
     }
 
+    public boolean contains(int[] cards, ArrayList<Integer> group) {
+        for (int ii = 0; ii < group.size(); ii += N_VALUES) {
+            boolean all_found = true;
+            for (int jj = 0; jj < N_VALUES; jj++) {
+                boolean found = false;
+                for (int kk = 0; kk < N_VALUES; kk++) {
+                    if (cards[kk] == group.get(ii + jj)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    all_found = false;
+                    break;
+                }
+            }
+            if (all_found) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Check to see if the cards that the user selected make up a set.
      */
@@ -293,7 +325,12 @@ public class MainActivity extends FragmentActivity {
             return;
         }
 
-        if (isSet(selected)) {
+        if (!isSet(selected)) {
+            Toast.makeText(this, "Not a set", Toast.LENGTH_SHORT).show();
+        } else if (mFindAll && contains(selected, mFound)) {
+            Toast.makeText(this, "You already found this set",
+                    Toast.LENGTH_SHORT).show();
+        } else {
             Toast.makeText(
                     this,
                     "Found a set!  (Out of " + (mSets.size() / 3)
@@ -302,25 +339,30 @@ public class MainActivity extends FragmentActivity {
                 mFound.add(mShownCards.get(pos));
             }
             mAdapter.refreshFound();
-            if (mShownCards.size() <= N_INIT_CARDS && !mDeck.endOfDeck()) {
-                for (int pos : selpos) {
-                    mShownCards.set(pos, mDeck.nextCard());
+            if (mFindAll) {
+                if (mFound.size() == mSets.size()) {
+                    Toast.makeText(this, "Found all sets!", Toast.LENGTH_LONG)
+                            .show();
                 }
             } else {
-                int num_shown = mShownCards.size();
-                int ii = 0;
-                for (int pos = num_shown - 1; pos > num_shown - 4; pos--) {
-                    if (mSelected[mShownCards.get(pos)]) {
-                        mShownCards.remove(pos);
-                    } else {
-                        mShownCards.set(selpos[ii], mShownCards.get(pos));
-                        mShownCards.remove(pos);
-                        ii++;
+                if (mShownCards.size() <= N_INIT_CARDS && !mDeck.endOfDeck()) {
+                    for (int pos : selpos) {
+                        mShownCards.set(pos, mDeck.nextCard());
+                    }
+                } else {
+                    int num_shown = mShownCards.size();
+                    int ii = 0;
+                    for (int pos = num_shown - 1; pos > num_shown - 4; pos--) {
+                        if (mSelected[mShownCards.get(pos)]) {
+                            mShownCards.remove(pos);
+                        } else {
+                            mShownCards.set(selpos[ii], mShownCards.get(pos));
+                            mShownCards.remove(pos);
+                            ii++;
+                        }
                     }
                 }
             }
-        } else {
-            Toast.makeText(this, "Not a set", Toast.LENGTH_SHORT).show();
         }
         for (int card : selected) {
             mSelected[card] = false;
@@ -495,8 +537,7 @@ public class MainActivity extends FragmentActivity {
             }
         }
 
-        public void refreshFragments(FragmentActivity activity)
-        {
+        public void refreshFragments(FragmentActivity activity) {
             FragmentManager fm = activity.getSupportFragmentManager();
             FragmentTransaction ft = fm.beginTransaction();
             for (int ii = 0; ii < getCount(); ii++) {
