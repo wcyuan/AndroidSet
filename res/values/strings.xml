@@ -7,6 +7,6 @@
     <string name="show_me">Show Me</string>
     <string name="new_game">New Game</string>
     <string name="default_toggle">Normal</string>
-    <string name="default_nsets"></string>
+    <string name="default_nsets"># Sets</string>
 
 </resources>

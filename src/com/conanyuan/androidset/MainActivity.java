@@ -87,7 +87,7 @@ public class MainActivity extends FragmentActivity {
      */
     private boolean            mFindAll     = false;
 
-    private boolean            mShowNSets   = true;
+    private boolean            mShowNSets   = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -368,18 +368,23 @@ public class MainActivity extends FragmentActivity {
             Toast.makeText(this, "You already found this set",
                     Toast.LENGTH_SHORT).show();
         } else {
-            Toast.makeText(
-                    this,
-                    "Found a set!  (Out of " + (mSets.size() / 3)
-                            + " sets in view)", Toast.LENGTH_SHORT).show();
+            if (mFindAll && !mShowNSets) {
+                Toast.makeText(this, "Found a set!", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(
+                        this,
+                        "Found a set!  (Out of " + (mSets.size() / 3)
+                                + " sets in view)", Toast.LENGTH_SHORT).show();
+            }
             for (int pos : selpos) {
                 mFound.add(mShownCards.get(pos));
             }
             mAdapter.refreshFound();
             if (mFindAll) {
                 if (mFound.size() == mSets.size()) {
-                    Toast.makeText(this, "Found all sets!", Toast.LENGTH_LONG)
-                            .show();
+                    Toast.makeText(this,
+                            "Found all " + (mSets.size() / 3) + " sets!",
+                            Toast.LENGTH_LONG).show();
                 }
             } else {
                 if (mShownCards.size() <= N_INIT_CARDS && !mDeck.endOfDeck()) {
@@ -677,6 +682,8 @@ public class MainActivity extends FragmentActivity {
                     b.setText(((MainActivity) getActivity()).setNSetsText(true));
                 }
             });
+
+            refreshView();
 
             return v;
         }
